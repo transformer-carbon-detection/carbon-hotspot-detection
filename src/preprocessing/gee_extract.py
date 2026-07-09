@@ -134,24 +134,21 @@ def _build_feature_image(ee: Any, feature: dict, month: str):
         }
 
     if temporal_resolution == "yearly":
-        start_date = f"{year}-01-01"
-        end_date = f"{year + 1}-01-01"
-        collection = (
-            ee.ImageCollection(feature["collection"])
-            .filterDate(start_date, end_date)
-            .select(feature["band"])
+        collection, image_count, used_year, fallback_used = _get_yearly_collection(
+            ee=ee,
+            feature=feature,
+            requested_year=year,
+            error_label="GEE image",
         )
-        image_count = collection.size().getInfo()
-        if image_count == 0:
-            raise ValueError(
-                f"No yearly GEE image found for collection "
-                f"'{feature['collection']}' in {year}."
-            )
 
         image = collection.mosaic().rename(feature["output_column"])
+        period_value = str(used_year)
+        if fallback_used:
+            period_value = f"{used_year} (fallback for requested {year})"
+
         return image, {
             "period_label": "Year",
-            "period_value": str(year),
+            "period_value": period_value,
             "image_count": image_count,
         }
 
@@ -162,28 +159,66 @@ def _build_feature_image(ee: Any, feature: dict, month: str):
 
 
 def _build_landcover_fraction_image(ee: Any, feature: dict, year: int):
-    start_date = f"{year}-01-01"
-    end_date = f"{year + 1}-01-01"
-    collection = (
-        ee.ImageCollection(feature["collection"])
-        .filterDate(start_date, end_date)
-        .select(feature["band"])
+    collection, image_count, used_year, fallback_used = _get_yearly_collection(
+        ee=ee,
+        feature=feature,
+        requested_year=year,
+        error_label="land cover image",
     )
-    image_count = collection.size().getInfo()
-    if image_count == 0:
-        raise ValueError(
-            f"No yearly land cover image found for collection "
-            f"'{feature['collection']}' in {year}."
-        )
 
     landcover_class_value = feature.get("landcover_class_value", 13)
     image = collection.first()
     urban = image.eq(landcover_class_value).rename(feature["output_column"])
+
+    period_value = str(used_year)
+    if fallback_used:
+        period_value = f"{used_year} (fallback for requested {year})"
+
     return urban, {
         "period_label": "Year",
-        "period_value": str(year),
+        "period_value": period_value,
         "image_count": image_count,
     }
+
+
+def _get_yearly_collection(
+    ee: Any,
+    feature: dict,
+    requested_year: int,
+    error_label: str,
+):
+    """Return a yearly ImageCollection, using feature['fallback_year'] if needed."""
+    years_to_try = [requested_year]
+    fallback_year = feature.get("fallback_year")
+    if fallback_year is not None and int(fallback_year) != requested_year:
+        years_to_try.append(int(fallback_year))
+
+    last_count = 0
+    for candidate_year in years_to_try:
+        start_date = f"{candidate_year}-01-01"
+        end_date = f"{candidate_year + 1}-01-01"
+        collection = (
+            ee.ImageCollection(feature["collection"])
+            .filterDate(start_date, end_date)
+            .select(feature["band"])
+        )
+        image_count = collection.size().getInfo()
+        last_count = image_count
+        if image_count > 0:
+            fallback_used = candidate_year != requested_year
+            if fallback_used:
+                print(
+                    f"Using fallback_year={candidate_year} for collection "
+                    f"'{feature['collection']}' because requested year "
+                    f"{requested_year} was unavailable."
+                )
+            return collection, image_count, candidate_year, fallback_used
+
+    raise ValueError(
+        f"No yearly {error_label} found for collection "
+        f"'{feature['collection']}' in {requested_year}. "
+        f"fallback_year={fallback_year}, last_image_count={last_count}."
+    )
 
 
 def _get_reducer(ee: Any, reducer_name: str):
