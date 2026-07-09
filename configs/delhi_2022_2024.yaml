@@ -14,7 +14,11 @@ region:
 
 date:
   mode: monthly_range
+<<<<<<< HEAD
   start_month: 2020-01
+=======
+  start_month: 2022-01
+>>>>>>> 751911a (Update preprocessing pipeline and requirements)
   end_month: 2024-12
 
 temporal:
@@ -80,18 +84,9 @@ features:
     temporal_resolution: monthly
     fill_method: mean
 
-  population:
-    type: image
-    collection: WorldPop/GP/100m/pop
-    band: population
-    output_column: population_sum
-    stream: stream_b
-    scale: 100
-    reducer: sum
-    temporal_resolution: yearly
-    fallback_year: 2020
-    fill_method: zero
-
+<<<<<<< HEAD
+=======
+>>>>>>> 751911a (Update preprocessing pipeline and requirements)
   urban_fraction:
     type: landcover_fraction
     collection: MODIS/061/MCD12Q1

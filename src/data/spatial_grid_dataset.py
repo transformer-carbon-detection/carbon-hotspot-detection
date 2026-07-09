@@ -161,7 +161,7 @@ class SpatialGridDataset(Dataset):
                 f"{npz_path} stream_a must have shape [3, H, W], "
                 f"got {stream_a.shape}"
             )
-        if stream_b.ndim != 3 or stream_b.shape[0] != 5:
+        if stream_b.ndim != 3 or stream_b.shape[0] != 4:
             raise ValueError(
                 f"{npz_path} stream_b must have shape [5, H, W], "
                 f"got {stream_b.shape}"
