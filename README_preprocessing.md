@@ -1,9 +1,14 @@
 # data-preprocessing
 
 This README documents only the data preprocessing code in `src/preprocessing`.
-The pipeline prepares monthly grid-based feature tables, ODIAC emission labels,
-merged training CSV files, and compressed tensor samples for carbon hotspot
-detection.
+The pipeline prepares monthly grid-based input feature tables, continuous ODIAC
+regression labels, merged training CSV files, and compressed spatial tensor
+samples for carbon-emission regression.
+
+The current project predicts a continuous ODIAC-derived carbon-emission value
+rather than a discrete hotspot class. Some preprocessing functions may still
+generate legacy class labels and quantile thresholds for compatibility with
+earlier pipeline outputs.
 
 ## Preprocessing Modules
 
@@ -16,7 +21,7 @@ The preprocessing package is organized by pipeline stage:
 | `vector_features.py` | Extracts vector power plant features and assigns them to grid cells. |
 | `cleaning.py` | Fills missing raster feature values using the configured fill method. |
 | `raster_label.py` | Extracts monthly ODIAC label values from local GeoTIFF files. |
-| `labeling.py` | Converts continuous ODIAC labels into quantile-based hotspot classes. |
+| `labeling.py` | Legacy utility that can generate quantile-based class labels for backward compatibility. These class labels are not used by the current regression model. |
 | `merge.py` | Merges cleaned features and labels into final monthly datasets. |
 | `tensor_builder.py` | Converts final monthly CSV files into `.npz` spatial tensor samples. |
 
@@ -92,11 +97,17 @@ python scripts/run_preprocessing.py --config configs/delhi_2022_2024.yaml
    - log-transformed label
    - ODIAC minimum and maximum values for inspection
 
-6. Create hotspot classes
+6. Preserve optional legacy class labels
 
-   `labeling.py` converts the continuous ODIAC regression label into discrete
-   hotspot classes. The configured class count is used to create quantile
-   thresholds.
+   `label_reg` and `label_reg_log` are the active learning targets for the
+   current regression project. The existing preprocessing pipeline may still run
+   the class-labeling stage and generate quantile-based `label_cls` values for
+   backward compatibility.
+
+   These class labels are not used as model input features, training targets,
+   loss-function targets, or current evaluation targets. The current pipeline
+   does not require class interpretation, class balance analysis, ROC-AUC,
+   PR-AUC, or classification accuracy.
 
    Supported quantile scopes:
 
@@ -105,10 +116,11 @@ python scripts/run_preprocessing.py --config configs/delhi_2022_2024.yaml
 
 7. Build final monthly datasets
 
-   `build_final_dataset()` merges all cleaned feature tables with the classified
-   ODIAC labels on `grid_id` and `date`. It validates required columns, checks
-   duplicate grid-date pairs, rejects missing values in major columns, and saves
-   one final CSV per month.
+   `build_final_dataset()` merges all cleaned feature tables with ODIAC
+   regression labels and any optional legacy label columns on `grid_id` and
+   `date`. It validates required columns, checks duplicate grid-date pairs,
+   rejects missing values in major columns, and saves one final CSV per month.
+   The final dataset must contain the continuous regression target.
 
 8. Build combined dataset
 
@@ -139,8 +151,26 @@ python scripts/run_preprocessing.py --config configs/delhi_2022_2024.yaml
    width
    ```
 
+   `stream_a` and `stream_b` remain unchanged as the model inputs. `label_reg`,
+   or its log-transformed equivalent `label_reg_log` when available in the
+   final CSV, is the current training target. `label_cls`, when present, is
+   legacy metadata and is ignored by the regression model.
+
    `build_tensor_index()` writes a CSV index that maps each month to its tensor
    file and final dataset file.
+
+## Current Training Target
+
+The current model is trained as a regression model.
+
+- Inputs: `stream_a` and `stream_b`
+- Target: `label_reg_log` when available, otherwise `label_reg`
+- Output: one continuous emission prediction per sample
+- Classification labels: not used for training or evaluation
+
+Legacy `label_cls` columns may remain in intermediate CSV or tensor files so
+that existing preprocessing outputs remain compatible with earlier versions of
+the project.
 
 ## Configuration-Driven Execution
 
@@ -160,6 +190,10 @@ run:
   build_tensor_index: true
 ```
 
+The `create_label_cls: true` flag represents a legacy compatibility stage in
+the current code path. It does not mean that classification is used for current
+model training.
+
 The config also controls:
 
 - project name and Google Earth Engine project ID
@@ -167,7 +201,7 @@ The config also controls:
 - monthly date range
 - feature collections, bands, reducers, streams, scales, and fill methods
 - ODIAC file path pattern
-- label column names, class count, and quantile scope
+- regression label column names and optional legacy class-label settings
 - output directories
 
 ## Expected Inputs
@@ -207,13 +241,17 @@ Typical processed outputs:
 ```text
 data/processed/<stream>_<feature>_YYYY_MM_clean.csv
 data/processed/odiac_label_YYYY_MM.csv
-data/processed/odiac_label_YYYY_MM_cls.csv
+data/processed/odiac_label_YYYY_MM_cls.csv                  # legacy compatibility output
 data/processed/final_ms_mca_dataset_YYYY_MM.csv
 data/processed/final_ms_mca_dataset_<start_year>_<end_year>.csv
 data/processed/ms_mca_tensor_<region>_YYYY_MM.npz
 data/processed/tensor_index_<start_year>_<end_year>.csv
-data/processed/label_thresholds_<start_year>_<end_year>_global.csv
+data/processed/label_thresholds_<start_year>_<end_year>_global.csv  # legacy compatibility output
 ```
+
+The primary processed outputs for current regression training are the final
+monthly dataset CSV files, the combined multi-month dataset, and tensor files
+that contain the continuous ODIAC regression target.
 
 ## Validation Behavior
 
@@ -224,7 +262,9 @@ The preprocessing code performs validation throughout the pipeline:
 - unsupported feature types, reducers, temporal resolutions, and fill methods
   raise errors
 - all-missing features cannot be filled with `mean` or `median`
-- ODIAC labels cannot contain missing values before classification
+- ODIAC regression labels cannot contain missing values before final dataset or
+  tensor construction
+- legacy class-label generation also validates that labels are present before
+  assigning quantile classes
 - final monthly datasets cannot contain duplicate `grid_id` and `date` pairs
 - final monthly datasets cannot contain missing values in required columns
-
