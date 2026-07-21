@@ -1,10 +1,10 @@
-# 🌍 MS-CA Carbon Emission Prediction Model (Pure Regression)
+# 🌍 Carbon Emission Prediction Model (Pure Regression)
 
 ## 📌 Project Overview
 This project is a deep learning regression pipeline that uses satellite proxy data to predict the continuous carbon emission value (a continuous scalar) for over 17,000 regional cells. We have completely discarded the previous hotspot classification approach. Our new objective is to preserve the outliers in the raw data and objectively demonstrate the true correlation between the proxy features and the actual carbon map.
 
 ---
-
+ㅋ
 ## 🏗️ Data Flow & Model Architecture (Tensor Shape Transformation)
 Below is the 5-step computational process detailing how the model reads a 16x16 pixel environment around a cell and ultimately outputs exactly 1 scalar prediction (carbon emission).
 

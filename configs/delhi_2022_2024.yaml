@@ -14,11 +14,7 @@ region:
 
 date:
   mode: monthly_range
-<<<<<<< HEAD
-  start_month: 2020-01
-=======
   start_month: 2022-01
->>>>>>> 751911a (Update preprocessing pipeline and requirements)
   end_month: 2024-12
 
 temporal:
@@ -84,9 +80,6 @@ features:
     temporal_resolution: monthly
     fill_method: mean
 
-<<<<<<< HEAD
-=======
->>>>>>> 751911a (Update preprocessing pipeline and requirements)
   urban_fraction:
     type: landcover_fraction
     collection: MODIS/061/MCD12Q1

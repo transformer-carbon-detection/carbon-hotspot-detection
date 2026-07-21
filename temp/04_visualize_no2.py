@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 # ============================================================
 
 GRID_PATH = "data/grid/delhi_ncr_1km_grid.geojson"
-NO2_CSV_PATH = "data/interim/stream_a_no2_2025_01.csv"
+NO2_CSV_PATH = "data/interim/stream_a_no2_2022_01.csv"
 
 OUTPUT_DIR = "outputs"
 OUTPUT_FIG = os.path.join(OUTPUT_DIR, "no2_2025_01_map.png")

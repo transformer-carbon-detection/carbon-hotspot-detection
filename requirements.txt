@@ -19,3 +19,9 @@ shapely
 pyproj
 
 fiona
+
+earthengine-api
+
+geemap
+
+rasterstats
